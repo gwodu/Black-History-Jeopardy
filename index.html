@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black History Jeopardy</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #060CE9; /* Jeopardy Blue */
+            --card-text: #FFCC00; /* Jeopardy Gold */
+            --modal-bg: #000080;
+            --accent-red: #D2042D;
+            --accent-green: #008000;
+            --accent-black: #000000;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 10px;
+            color: var(--card-text);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 2px solid var(--accent-red);
+            padding-bottom: 5px;
+        }
+
+        /* Game Board */
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); /* 6 Columns */
+            gap: 5px;
+            flex-grow: 1;
+            margin-bottom: 15px;
+        }
+
+        .category-header {
+            background: linear-gradient(180deg, var(--accent-black), #333);
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            text-transform: uppercase;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            border-top: 3px solid var(--accent-green);
+        }
+
+        .clue-card {
+            background-color: var(--card-bg);
+            color: var(--card-text);
+            font-size: 1.8rem;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            border: 2px solid #000;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        .clue-card:hover {
+            background-color: #2a30ff;
+            transform: scale(1.02);
+        }
+
+        .clue-card.disabled {
+            background-color: #333;
+            color: #555;
+            cursor: default;
+            pointer-events: none;
+            border-color: #222;
+        }
+
+        /* Modal (The Question) */
+        #modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #clue-display {
+            background-color: var(--modal-bg);
+            color: white;
+            padding: 40px;
+            border: 6px solid var(--card-text);
+            border-radius: 15px;
+            width: 85%;
+            max-width: 1000px;
+            text-align: center;
+            font-size: 2.2rem;
+            font-weight: bold;
+            min-height: 350px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 80px rgba(0,0,0,0.9);
+            position: relative;
+        }
+
+        #clue-text {
+            margin-bottom: 30px;
+            line-height: 1.3;
+            text-shadow: 2px 2px 4px #000;
+        }
+        
+        #clue-image {
+            max-width: 100%;
+            max-height: 400px;
+            margin-bottom: 20px;
+            border: 3px solid white;
+            display: none;
+        }
+
+        #answer-text {
+            display: none;
+            color: var(--card-text);
+            margin-top: 20px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 0 #000;
+            border-top: 2px solid rgba(255,255,255,0.2);
+            padding-top: 20px;
+            width: 100%;
+        }
+
+        .modal-controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        #btn-reveal { background-color: var(--card-text); color: black; box-shadow: 0 4px 0 #b38f00; }
+        #btn-reveal:active { transform: translateY(4px); box-shadow: none; }
+        
+        #btn-close { background-color: var(--accent-red); color: white; display: none; box-shadow: 0 4px 0 #800000; }
+        #btn-close:active { transform: translateY(4px); box-shadow: none; }
+
+        /* Scoreboard */
+        #scoreboard {
+            display: flex;
+            justify-content: space-around;
+            background-color: #1a1a1a;
+            padding: 10px;
+            border-top: 2px solid #333;
+        }
+
+        .team-score {
+            text-align: center;
+            background: #222;
+            padding: 8px 15px;
+            border-radius: 8px;
+            min-width: 120px;
+            border: 1px solid #444;
+        }
+
+        .team-name {
+            color: var(--card-text);
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+            font-size: 1.1rem;
+            outline: none;
+        }
+
+        .score-val {
+            font-size: 1.8rem;
+            font-family: monospace;
+            display: block;
+            margin-bottom: 5px;
+            color: white;
+        }
+
+        .score-ctrls {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .score-ctrls button {
+            padding: 2px 10px;
+            font-size: 1rem;
+            margin: 0;
+            border-radius: 3px;
+            box-shadow: none;
+        }
+
+        .btn-plus { background-color: var(--accent-green); color: white; }
+        .btn-minus { background-color: var(--accent-red); color: white; }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .clue-card { font-size: 1.4rem; }
+            .category-header { font-size: 0.8rem; }
+            #clue-display { font-size: 1.8rem; padding: 20px; }
+            button { padding: 10px 20px; font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Jeopardy: Black History Month Edition</h1>
+</header>
+
+<div id="game-board">
+    <!-- Generated by JS -->
+</div>
+
+<div id="scoreboard">
+    <!-- Teams Generated by JS -->
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay">
+    <div id="clue-display">
+        <img id="clue-image" src="" alt="Clue Image">
+        <div id="clue-text">QUESTION GOES HERE</div>
+        <div id="answer-text">ANSWER GOES HERE</div>
+        
+        <div class="modal-controls">
+            <button id="btn-reveal" onclick="revealAnswer()">Show Answer</button>
+            <button id="btn-close" onclick="closeModal()">Continue</button>
+        </div>
+    </div>
+</div>
+
+<!-- Start Game Overlay -->
+<div id="start-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:200; display:flex; justify-content:center; align-items:center; flex-direction:column;">
+    <h1 style="font-size:3rem; color:var(--card-text); margin-bottom:20px;">Ready to Play?</h1>
+    <button onclick="startGame()" style="font-size:2rem; padding:20px 40px; background:var(--accent-green); color:white; border:none; border-radius:10px; cursor:pointer;">START GAME</button>
+</div>
+
+<!-- Audio Players -->
+<audio id="sfx-intro" src="intro.mp3"></audio>
+<audio id="sfx-clue" src="clue_open.mp3" loop></audio>
+<audio id="sfx-correct" src="correct.mp3"></audio>
+<audio id="sfx-wrong" src="wrong.mp3"></audio>
+
+<script>
+    function startGame() {
+        document.getElementById('start-overlay').style.display = 'none';
+        document.getElementById('sfx-intro').play().catch(e => console.log("Audio error:", e));
+    }
+
+    function playSound(type) {
+        // Stop clue loop if playing
+        const clueAudio = document.getElementById('sfx-clue');
+        
+        if (type === 'open') {
+            clueAudio.currentTime = 0;
+            clueAudio.play().catch(e => console.log(e));
+        } else if (type === 'stop_clue') {
+            clueAudio.pause();
+            clueAudio.currentTime = 0;
+        } else if (type === 'correct') {
+            document.getElementById('sfx-correct').play().catch(e => console.log(e));
+        } else if (type === 'wrong') {
+            document.getElementById('sfx-wrong').play().catch(e => console.log(e));
+        }
+    }
+
+
+    // --- GAME DATA ---
+    const categories = [
+        "Music", 
+        "Movies", 
+        "Food", 
+        "Historical Figures", 
+        "Toronto & Sports",
+        "U of T / Alumni"
+    ];
+
+    const gameData = [
+        // Category 1: Music
+        [
+            { q: "His 2013 'Control' verse sparked competition, but his 2024 beef with Drake broke the internet.", a: "Kendrick Lamar" },
+            { q: "This 'King of Pop' changed music videos forever with 'Thriller'.", a: "Michael Jackson" },
+            { q: "This Toronto icon has the most Billboard Hot 100 entries of all time.", a: "Drake" },
+            { q: "Originating in New Orleans, this genre is defined by improvisation and syncopated rhythms.", a: "Jazz" },
+            { q: "Most awarded artist in Grammy history.", a: "Beyoncé" }
+        ],
+        // Category 2: Movies
+        [
+            { q: "Directed by Ryan Coogler, this 2018 cultural phenomenon became the first superhero film ever nominated for Best Picture at the Oscars.", a: "Black Panther" },
+            { q: "Jordan Peele made history as the first Black winner of the Best Original Screenplay Oscar for this genre-defying psychological horror debut.", a: "Get Out" },
+            { q: "This soulful crooner is the first Black man to achieve EGOT status—winning an Emmy, Grammy, Oscar, and Tony.", a: "John Legend" },
+            { q: "Before John Glenn orbited Earth, he asked for THIS mathematician by name to double-check the computer's numbers.", a: "Katherine Johnson (Hidden Figures)" },
+            { q: "Produced by Oprah and Quincy Jones, this 1985 masterpiece received 11 Oscar nominations, showcasing the power of Alice Walker's Pulitzer-winning novel.", a: "The Color Purple" }
+        ],
+        // Category 3: Food
+        [
+            { q: "What is Jamaica's national dish?", a: "Ackee and Saltfish", img: "food100.jpeg" },
+            { q: "Which rice-based dish is the subject of a fierce rivalry between Nigerians and Ghanaians?", a: "Jollof Rice", img: "food200.jpeg" },
+            { q: "Made from pounded cassava or cocoyam and eaten with soups, this smooth, dough-like staple went viral on TikTok for its unique 'slappable' texture.", a: "Fufu", img: "food300.jpeg" },
+            { q: "This East African flatbread serves as both the plate and the utensil.", a: "Injera", img: "food400.jpeg" },
+            { q: "After emancipation, freed Black Americans grew and sold this fruit for economic independence, leading to it being targeted with harmful stereotypes.", a: "Watermelon", img: "food500.jpeg" }
+        ],
+        // Category 4: Historical Figures
+        [
+            { q: "Delivered the 'I Have a Dream' speech in 1963.", a: "Dr. Martin Luther King Jr." },
+            { q: "Her refusal to give up her seat on a Montgomery bus in 1955 didn't just break a rule; it sparked a 381-day boycott and ignited the modern Civil Rights Movement.", a: "Rosa Parks" },
+            { q: "Spent 27 years in prison before becoming South Africa's first Black president.", a: "Nelson Mandela" },
+            { q: "Featured on the Canadian $10 bill for challenging segregation in a movie theatre.", a: "Viola Desmond" },
+            { q: "Escaped slavery and made 13 missions to rescue ~70 people via the Underground Railroad.", a: "Harriet Tubman" }
+        ],
+        // Category 5: Toronto & Sports
+        [
+            { q: "Year the Toronto Raptors won their first NBA Championship.", a: "2019" },
+            { q: "North America's largest Caribbean carnival, held annually in Toronto.", a: "Caribana (Toronto Caribbean Carnival)" },
+            { q: "World record holder for the 100m and 200m sprint.", a: "Usain Bolt" },
+            { q: "Since the 1950s, this Eglinton West enclave has been the heartbeat of Caribbean culture in Toronto, home to the first Black-owned businesses in the area.", a: "Little Jamaica" },
+            { q: "First Black player in the NHL.", a: "Willie O'Ree" }
+        ],
+        // Category 6: U of T / Alumni
+        [
+            { q: "This current UofT Chancellor is a 'Dragon' on Dragon's Den.", a: "Wes Hall" },
+            { q: "Name one Black student group active on UofT campus.", a: "BSA / NSBE / BLC / etc." },
+            { q: "First Black woman elected to the House of Commons (UofT Alum).", a: "Jean Augustine" },
+            { q: "This UofT office leads the university's institutional commitment to eliminating racial discrimination and organizes the Black History Month Luncheon.", a: "Anti-Racism & Cultural Diversity Office (ARCDO)" },
+            { q: "Born from community activism in 1970, this program was designed to bridge the gap for students from Black and Indigenous communities excluded from higher ed.", a: "Transitional Year Programme (TYP)" }
+        ]
+    ];
+
+    // Teams Configuration
+    const teams = [
+        { name: "Team 1", score: 0 },
+        { name: "Team 2", score: 0 },
+        { name: "Team 3", score: 0 },
+        { name: "Team 4", score: 0 },
+        { name: "Team 5", score: 0 }
+    ];
+
+    // --- LOGIC ---
+
+    let currentClueValue = 0;
+
+    function initGame() {
+        const board = document.getElementById('game-board');
+        
+        // Render Headers
+        categories.forEach(cat => {
+            const div = document.createElement('div');
+            div.className = 'category-header';
+            div.textContent = cat;
+            board.appendChild(div);
+        });
+
+        // Render Clues (Row by Row)
+        for (let r = 0; r < 5; r++) { // 5 rows
+            for (let c = 0; c < 6; c++) { // 6 cols
+                const val = (r + 1) * 100;
+                const btn = document.createElement('div');
+                btn.className = 'clue-card';
+                btn.textContent = `$${val}`;
+                btn.onclick = () => openClue(btn, c, r, val);
+                board.appendChild(btn);
+            }
+        }
+
+        renderScores();
+    }
+
+    function renderScores() {
+        const sb = document.getElementById('scoreboard');
+        sb.innerHTML = '';
+        teams.forEach((t, idx) => {
+            const div = document.createElement('div');
+            div.className = 'team-score';
+            div.innerHTML = `
+                <span class="team-name" contenteditable="true">${t.name}</span>
+                <span class="score-val" id="score-${idx}">${t.score}</span>
+                <div class="score-ctrls">
+                    <button class="btn-minus" onclick="adjustScore(${idx}, -currentClueValue)">-</button>
+                    <button class="btn-plus" onclick="adjustScore(${idx}, currentClueValue)">+</button>
+                </div>
+            `;
+            sb.appendChild(div);
+        });
+    }
+
+    function adjustScore(teamIdx, amount) {
+        if (amount === 0) return;
+        
+        if (amount > 0) playSound('correct');
+        else playSound('wrong');
+
+        teams[teamIdx].score += amount;
+        document.getElementById(`score-${teamIdx}`).textContent = teams[teamIdx].score;
+    }
+
+    function openClue(element, col, row, value) {
+        if (element.classList.contains('disabled')) return;
+
+        // Start Loop Music
+        playSound('open');
+
+        // Mark as visited visually
+        element.classList.add('disabled');
+        element.style.color = "#444";
+        element.style.borderColor = "#222";
+        
+        // Load Data
+        const data = gameData[col][row];
+        currentClueValue = value;
+
+        // Setup Modal
+        const modal = document.getElementById('modal-overlay');
+        const txt = document.getElementById('clue-text');
+        const img = document.getElementById('clue-image');
+        const ans = document.getElementById('answer-text');
+        const btnReveal = document.getElementById('btn-reveal');
+        const btnClose = document.getElementById('btn-close');
+
+        txt.textContent = data.q;
+        ans.textContent = data.a;
+        ans.style.display = 'none';
+        
+        // Image Logic - Store path but hide initially
+        if (data.img) {
+            img.dataset.src = data.img; // store path
+            img.style.display = 'none';
+            img.src = "";
+        } else {
+            img.dataset.src = "";
+            img.style.display = 'none';
+        }
+
+        btnReveal.style.display = 'inline-block';
+        btnClose.style.display = 'none';
+        modal.style.display = 'flex';
+    }
+
+    function revealAnswer() {
+        // Stop Loop Music
+        playSound('stop_clue');
+
+        const ans = document.getElementById('answer-text');
+        const img = document.getElementById('clue-image');
+        
+        ans.style.display = 'block';
+        
+        // Show Image if exists
+        if (img.dataset.src) {
+            img.src = img.dataset.src;
+            img.style.display = 'block';
+        }
+
+        document.getElementById('btn-reveal').style.display = 'none';
+        document.getElementById('btn-close').style.display = 'inline-block';
+    }
+
+    function closeModal() {
+        document.getElementById('modal-overlay').style.display = 'none';
+    }
+
+    // Start
+    initGame();
+
+</script>
+</body>
+</html>
