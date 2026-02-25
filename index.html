@@ -20,16 +20,16 @@
             background-color: var(--bg-color);
             color: white;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            overflow-y: auto; /* Allow scrolling if needed */
         }
 
         header {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             color: var(--card-text);
             text-transform: uppercase;
             letter-spacing: 2px;
@@ -37,13 +37,15 @@
             padding-bottom: 5px;
         }
 
+        h1 { margin: 0; font-size: 1.5rem; }
+
         /* Game Board */
         #game-board {
             display: grid;
             grid-template-columns: repeat(6, 1fr); /* 6 Columns */
             gap: 5px;
             flex-grow: 1;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .category-header {
@@ -51,11 +53,11 @@
             color: white;
             font-weight: bold;
             text-align: center;
-            padding: 10px 2px;
+            padding: 5px 2px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
+            font-size: 0.9rem;
             text-transform: uppercase;
             box-shadow: 0 2px 4px rgba(0,0,0,0.5);
             border-top: 3px solid var(--accent-green);
@@ -64,7 +66,7 @@
         .clue-card {
             background-color: var(--card-bg);
             color: var(--card-text);
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: 900;
             display: flex;
             align-items: center;
@@ -73,6 +75,7 @@
             transition: transform 0.1s, background-color 0.2s;
             border: 2px solid #000;
             text-shadow: 2px 2px 0 #000;
+            min-height: 60px; /* Ensure touch targets are usable but compact */
         }
 
         .clue-card:hover {
@@ -267,7 +270,7 @@
 </div>
 
 <!-- Audio Players -->
-<audio id="sfx-intro" src="intro.mp3"></audio>
+<audio id="sfx-intro" src="intro.mp3" loop></audio> <!-- Loop added -->
 <audio id="sfx-clue" src="clue_open.mp3" loop></audio>
 <audio id="sfx-correct" src="correct.mp3"></audio>
 <audio id="sfx-wrong" src="wrong.mp3"></audio>
@@ -275,14 +278,18 @@
 <script>
     function startGame() {
         document.getElementById('start-overlay').style.display = 'none';
-        document.getElementById('sfx-intro').play().catch(e => console.log("Audio error:", e));
+        const intro = document.getElementById('sfx-intro');
+        intro.currentTime = 0;
+        intro.play().catch(e => console.log("Audio error:", e));
     }
 
     function playSound(type) {
         // Stop clue loop if playing
         const clueAudio = document.getElementById('sfx-clue');
+        const introAudio = document.getElementById('sfx-intro'); // Stop intro on any action
         
         if (type === 'open') {
+            introAudio.pause(); // Stop intro loop
             clueAudio.currentTime = 0;
             clueAudio.play().catch(e => console.log(e));
         } else if (type === 'stop_clue') {
@@ -292,6 +299,57 @@
             document.getElementById('sfx-correct').play().catch(e => console.log(e));
         } else if (type === 'wrong') {
             document.getElementById('sfx-wrong').play().catch(e => console.log(e));
+        }
+    }
+
+
+    // --- PERSISTENCE ---
+    function saveState() {
+        const state = {
+            scores: teams.map(t => t.score),
+            disabledClues: Array.from(document.querySelectorAll('.clue-card')).map((el, index) => {
+                return el.classList.contains('disabled') ? index : -1;
+            }).filter(i => i !== -1)
+        };
+        localStorage.setItem('jeopardyState', JSON.stringify(state));
+    }
+
+    function loadState() {
+        const saved = localStorage.getItem('jeopardyState');
+        if (saved) {
+            try {
+                const state = JSON.parse(saved);
+                
+                // Restore Scores
+                if (state.scores && state.scores.length === teams.length) {
+                    state.scores.forEach((score, idx) => {
+                        teams[idx].score = score;
+                        const el = document.getElementById(`score-${idx}`);
+                        if (el) el.textContent = score;
+                    });
+                }
+
+                // Restore Board
+                const allCards = document.querySelectorAll('.clue-card');
+                if (state.disabledClues) {
+                    state.disabledClues.forEach(idx => {
+                        if (allCards[idx]) {
+                            allCards[idx].classList.add('disabled');
+                            allCards[idx].style.color = "#444";
+                            allCards[idx].style.borderColor = "#222";
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Error loading saved state:", e);
+            }
+        }
+    }
+
+    function resetGame() {
+        if (confirm("Are you sure you want to reset the game? All scores will be lost.")) {
+            localStorage.removeItem('jeopardyState');
+            location.reload();
         }
     }
 
@@ -394,6 +452,7 @@
         }
 
         renderScores();
+        loadState(); // Restore state
     }
 
     function renderScores() {
@@ -412,6 +471,21 @@
             `;
             sb.appendChild(div);
         });
+
+        // Reset Button
+        const resetBtn = document.createElement('button');
+        resetBtn.textContent = "RESET GAME";
+        resetBtn.onclick = resetGame;
+        resetBtn.style.position = "fixed";
+        resetBtn.style.bottom = "10px";
+        resetBtn.style.right = "10px";
+        resetBtn.style.fontSize = "0.8rem";
+        resetBtn.style.padding = "5px 10px";
+        resetBtn.style.background = "#333";
+        resetBtn.style.color = "#888";
+        resetBtn.style.border = "1px solid #444";
+        resetBtn.style.zIndex = "1000";
+        document.body.appendChild(resetBtn);
     }
 
     function adjustScore(teamIdx, amount) {
@@ -422,6 +496,7 @@
 
         teams[teamIdx].score += amount;
         document.getElementById(`score-${teamIdx}`).textContent = teams[teamIdx].score;
+        saveState(); // Save state
     }
 
     function openClue(element, col, row, value) {
@@ -434,6 +509,7 @@
         element.classList.add('disabled');
         element.style.color = "#444";
         element.style.borderColor = "#222";
+        saveState(); // Save state
         
         // Load Data
         const data = gameData[col][row];
